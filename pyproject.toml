@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "finalproject-biu-ds20"
+version = "0.1.0"
+description = ""
+authors = ["Ofer <ofer@il-fts.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pandas = "^2.3.3"
+prophet = "^1.2.1"
+altair = "^6.0.0"
+matplotlib = "^3.10.7"
+scikit-learn = "^1.7.2"
+pyprojroot = "^0.3.0"
+ipython = "^9.7.0"
+seaborn = "^0.13.2"
+pydantic = "^2.12.4"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
