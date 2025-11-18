@@ -30,6 +30,7 @@ raw_data/
 *.parquet
 *.pqt
 *.feather
+*.html
 
 
 # TRAINED MODELS
