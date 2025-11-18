@@ -19,7 +19,7 @@ class MLPipeline(BaseComponent):
 
         # Rename the columns
         df = df.rename(columns={'Date': 'ds', 'Sales (billion USD)': 'y'})
-
+        print(df.info())
         # Convert the column `ds` to datetime, specifying the date format
         df['ds'] = pd.to_datetime(df['ds'], format='%d-%m-%Y')
         model, forecast = MetaProphet(self.config).fit_model_lin(
@@ -29,9 +29,27 @@ class MLPipeline(BaseComponent):
             ci=0.95,
             not_neg=False
         )
+        print(forecast.info())
         forecast_filtered = forecast[forecast['ds'].isin(df['ds'])]
         mse, r2 = MetaProphet(self.config).get_prophet_metrics(
-               forecast, forecast_filtered
+            forecast,  # the full forecast DataFrame
+            df  # the original df with ds + y
         )
+
         self.logger.info(f"mse: {mse}, r2: {r2}")
         self.logger.info("Pipeline completed successfully.")
+
+        model, forecats = MetaProphet(self.config).fit_model_log(
+                df=df,
+                period=12,
+                frq='M',
+                ci=0.95,
+                cap=None,
+                floor=None
+        )
+
+        MetaProphet(self.config).show_plots(
+                model=model,
+                forecast=forecast,
+                df=df
+        )

@@ -9,6 +9,8 @@ class AppConfig(BaseModel):
     ts_data_dir: Path = Field(default_factory=lambda: here("time_series/"))
     ts_data_file: Path = Field(default_factory=lambda: here("data/raw/sale-ecomm.xls"))
 
+    plots_dir: Path = Field(default_factory=lambda: here() / "plots")
+
     log_dir: Path = Field(default_factory=lambda: here("logs"))
     log_file: Path = Field(default_factory=lambda: here("logs/app.log"))
     log_level: str = "DEBUG"
