@@ -1,9 +1,10 @@
-# src/ml_pipeline.py
 from typing import Tuple
 import pandas as pd
 from src.common.base_component import BaseComponent
 from src.data_load import DataLoad
 from time_series.meta_prophet import MetaProphet
+from time_series.sarimax import SArimaX
+
 
 class MLPipeline(BaseComponent):
     def __init__(self, config) -> None:
@@ -22,7 +23,8 @@ class MLPipeline(BaseComponent):
         print(df.info())
         # Convert the column `ds` to datetime, specifying the date format
         df['ds'] = pd.to_datetime(df['ds'], format='%d-%m-%Y')
-        model, forecast = MetaProphet(self.config).fit_model_lin(
+        meta_p = MetaProphet(self.config)
+        model, forecast = meta_p.fit_model_lin(
             df=df,
             period=12,
             frq='M',
@@ -31,15 +33,14 @@ class MLPipeline(BaseComponent):
         )
         print(forecast.info())
         forecast_filtered = forecast[forecast['ds'].isin(df['ds'])]
-        mse, r2 = MetaProphet(self.config).get_prophet_metrics(
+        mse, r2 = meta_p.get_prophet_metrics(
             forecast,  # the full forecast DataFrame
             df  # the original df with ds + y
         )
-
         self.logger.info(f"mse: {mse}, r2: {r2}")
         self.logger.info("Pipeline completed successfully.")
 
-        model, forecats = MetaProphet(self.config).fit_model_log(
+        model, forecast = meta_p.fit_model_log(
                 df=df,
                 period=12,
                 frq='M',
@@ -48,8 +49,19 @@ class MLPipeline(BaseComponent):
                 floor=None
         )
 
-        MetaProphet(self.config).show_plots(
+        meta_p.show_plots(
                 model=model,
                 forecast=forecast,
                 df=df
         )
+
+        # SArimaX Modelling
+        #arima model
+        sarimax = SArimaX(self.config)
+        sarimax.run_model("arima")
+        # sarima model
+        sarimax.run_model("sarima")
+        # sarimax model
+        sarimax.run_model("sarimax")
+        # plots, metrics etc.
+        sarimax.model_results()

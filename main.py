@@ -1,6 +1,6 @@
 from src.ml_pipeline import MLPipeline
-from config.config import AppConfig
-from config.logging_config import setup_logging
+from time_series.config.config import AppConfig
+from time_series.config.logging_config import setup_logging
 
 def main():
     config = AppConfig()  # pydantic config

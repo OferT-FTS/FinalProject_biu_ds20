@@ -1,4 +1,3 @@
-# src/time_series/meta_prophet.py
 from typing import Tuple, Optional
 import pandas as pd
 from prophet import Prophet
@@ -11,6 +10,7 @@ from pathlib import Path
 
 
 class MetaProphet(BaseComponent):
+
     def __init__(self, config) -> None:
         super().__init__(config)
         self.logger.info("MetaProphet initialized")

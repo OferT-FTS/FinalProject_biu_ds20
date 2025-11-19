@@ -140,8 +140,7 @@ plot_df = forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].melt('ds', var_na
 
 # Plot forecast
 chart = alt.Chart(plot_df).mark_line(point=True).encode(
-    x=alt.X('ds:T', title='Date'),
-    y=alt.Y('Sales', title='Sales (billion USD)'),
+     y=alt.Y('Sales', title='Sales (billion USD)'),
     color='Metric',
     tooltip=['ds', 'Sales', 'Metric']
 ).properties(

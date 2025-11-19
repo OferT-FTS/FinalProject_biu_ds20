@@ -1,4 +1,3 @@
-# src/common/base_component.py
 import logging
 from typing import Any
 

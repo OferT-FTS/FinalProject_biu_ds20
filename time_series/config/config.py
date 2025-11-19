@@ -1,4 +1,3 @@
-# src/config/config.py
 from pydantic import BaseModel, Field
 from typing import Dict, Any
 from pathlib import Path
@@ -7,12 +6,12 @@ from pyprojroot import here
 class AppConfig(BaseModel):
     project_root: Path = Field(default_factory=lambda: here())
     ts_data_dir: Path = Field(default_factory=lambda: here("time_series/"))
-    ts_data_file: Path = Field(default_factory=lambda: here("data/raw/sale-ecomm.xls"))
+    ts_data_file: Path = Field(default_factory=lambda: here("time_series/data/raw/sale-ecomm.xls"))
 
-    plots_dir: Path = Field(default_factory=lambda: here() / "plots")
+    plots_dir: Path = Field(default_factory=lambda: here() / "time_series/plots")
 
-    log_dir: Path = Field(default_factory=lambda: here("logs"))
-    log_file: Path = Field(default_factory=lambda: here("logs/app.log"))
+    log_dir: Path = Field(default_factory=lambda: here("time_series/logs"))
+    log_file: Path = Field(default_factory=lambda: here("time_series/logs/app.log"))
     log_level: str = "DEBUG"
 
     # ML
