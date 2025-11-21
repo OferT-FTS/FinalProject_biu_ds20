@@ -58,10 +58,6 @@ class MLPipeline(BaseComponent):
         # SArimaX Modelling
         #arima model
         sarimax = SArimaX(self.config)
-        sarimax.run_model("arima")
-        # sarima model
-        sarimax.run_model("sarima")
-        # sarimax model
-        sarimax.run_model("sarimax")
+        sarimax.run_model()
         # plots, metrics etc.
         sarimax.model_results()
