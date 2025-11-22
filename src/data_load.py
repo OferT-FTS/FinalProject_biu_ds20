@@ -20,7 +20,7 @@ class DataLoad(BaseComponent):
             self.logger.error(f"File not found: {self.infile}")
         return exists
 
-    def import_data(self) -> pd.DataFrame:
+    def import_data(self, seperator: str=None) -> pd.DataFrame:
         """Load CSV, Excel, TXT, or pickle safely."""
         if not self.valid_file():
             raise FileNotFoundError(f"File not found: {self.infile}")
@@ -30,7 +30,10 @@ class DataLoad(BaseComponent):
 
         try:
             if ext == ".csv":
-                return pd.read_csv(self.infile)
+                if seperator is None:
+                    return pd.read_csv(self.infile)
+                else:
+                    return pd.read_csv(self.infile, sep=seperator)
             if ext in (".xls", ".xlsx"):
                 return pd.read_excel(self.infile)
             if ext == ".txt":

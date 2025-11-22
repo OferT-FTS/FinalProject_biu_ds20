@@ -6,7 +6,7 @@ from pyprojroot import here
 class AppConfig(BaseModel):
     project_root: Path = Field(default_factory=lambda: here())
     ts_data_dir: Path = Field(default_factory=lambda: here("time_series/"))
-    ts_data_file: Path = Field(default_factory=lambda: here("time_series/data/raw/sale-ecomm.xls"))
+    ts_data_file: Path = Field(default_factory=lambda: here("time_series/data/raw/Bitcoin.csv"))
 
     plots_dir: Path = Field(default_factory=lambda: here() / "time_series/plots")
 

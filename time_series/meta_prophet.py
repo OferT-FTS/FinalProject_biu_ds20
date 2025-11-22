@@ -8,6 +8,24 @@ import seaborn as sns
 from src.common.base_component import BaseComponent
 from pathlib import Path
 
+''' The Meta Prophet Model
+- Two model type configurations: linear and logistic
+- Possible to add special dates data
+
+
+Strengths:
+- Handles trend changes and seasonality well
+- Good for data with strong seasonal patterns
+- Robust to missing data and outliers
+- Works well when you have sufficient historical data
+
+Limitations can be:
+- Highly volatile and unpredictability, with sudden price swings that don't follow traditional patterns
+- Less stable Seasonality patterns
+- External events (news, regulations, market sentiment) cause sudden shocks that Prophet struggles to capture
+- Prophet assumes patterns from the past will repeat, which doesn't always hold
+- Trend reversals and regime changes that are hard to model 
+'''
 
 class MetaProphet(BaseComponent):
 
