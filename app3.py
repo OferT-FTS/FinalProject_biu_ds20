@@ -146,9 +146,11 @@ BINARY_PARTICLES_CSS_JS = r"""
 
 /* Glassmorphic container */
 .block-container {
-  position: relative;
+  position: fixed;
   z-index: 2;
-  background: rgba(255, 255, 255, 0.3);
+  width: 100%;
+  height: 75%;
+  background: rgba(255, 255, 255, 0.5);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   padding: 2rem 10rem;

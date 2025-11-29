@@ -32,7 +32,7 @@ class MetaProphet(BaseComponent):
     def __init__(self, config) -> None:
         super().__init__(config)
         self.logger.info("MetaProphet initialized")
-        self.output_dir: Path = config.plots_dir
+        self.output_dir: Path = config.ts_plots_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def get_prophet_metrics(self, forecast: pd.DataFrame, df: pd.DataFrame) -> tuple[float, float]:
