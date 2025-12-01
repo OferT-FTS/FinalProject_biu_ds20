@@ -1,32 +1,42 @@
-''' In this file the credit_card_fraud.csv is imported and filtered for
-further use. The credit_card_fraud.csv is a large file and needs to
-be imported once, that is the reason for the elapsed time computation.
-At the end of the file the results are saved as csv and pickle files.
-The csv and pickle files are of reasonable size.
-'''
+# In this file the credit_card_fraud.csv is imported and filtered for
+# further use. The credit_card_fraud.csv is a large file and needs to
+# be imported once, that is the reason for the elapsed time computation.
+# At the end of the file the results are saved as csv and pickle files.
+# The csv and pickle files are of reasonable size.
+
+import os
+import time
+# import webbrowser
 from pathlib import Path
+import numpy as np
+import pandas as pd
+from imblearn.combine import SMOTETomek
+from imblearn.over_sampling import RandomOverSampler, SMOTE
+from imblearn.under_sampling import RandomUnderSampler
+from sklearn import clone
+from sklearn.ensemble import IsolationForest, GradientBoostingClassifier, RandomForestClassifier, AdaBoostClassifier
+from sklearn.feature_selection import RFE
+from sklearn.linear_model import Lasso, Ridge, LogisticRegression
+from sklearn.metrics import confusion_matrix, classification_report, precision_score, recall_score, f1_score, \
+    roc_auc_score, accuracy_score, average_precision_score
+from sklearn.model_selection import GridSearchCV, StratifiedKFold
+from ydata_profiling import ProfileReport
+from fraud_detection.src import pr_0_defs
+# from src.common.data_un_load import DataUnLoad
+# from sqlalchemy.dialects.mysql.mariadb import loader
 from src.common.base_component import BaseComponent
-from pr_0_common_imports import (pd, time, script_directory,ProfileReport, webbrowser,IsolationForest,StratifiedKFold,
-      AdaBoostClassifier, GradientBoostingClassifier, RandomForestClassifier,SVC,clone,XGBClassifier,average_precision_score,SMOTETomek,
-                                 RandomUnderSampler,RandomOverSampler, SMOTE,accuracy_score, precision_score, recall_score, f1_score,
-    roc_auc_score,os, clone,RandomOverSampler, SMOTE,RandomUnderSampler)
-import pr_0_defs
+import csv
+import optuna
+from xgboost import XGBClassifier
+from sklearn.model_selection import cross_val_score
+import warnings
+warnings.filterwarnings("ignore")
 
-from pr_0_common_imports import (
-    pd, np, script_directory, XGBClassifier, RandomOverSampler, SMOTE, RandomUnderSampler, SMOTETomek,
-    accuracy_score,
-    precision_score, recall_score, f1_score, confusion_matrix, Lasso, LinearSVC, Ridge,
-    GradientBoostingClassifier,
-    RandomForestClassifier, time, RFE, classification_report, GridSearchCV, roc_auc_score, shap, plt,
-    LogisticRegression,
-    AdaBoostClassifier, SVC
-)
-import pr_0_defs
+class ModelFraud(BaseComponent):
 
-class ReadFraudData(BaseComponent):
-
-    def __init__(self, config) -> None:
+    def __init__(self, config, loader_obj) -> None:
         super().__init__(config)
+        self.loader_obj = loader_obj
         self.logger.info("Fraud initialized")
         self.output_dir: Path = config.fr_data_process_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -34,7 +44,8 @@ class ReadFraudData(BaseComponent):
 
     def handle_data_load(self) -> None:
         start = time.perf_counter()
-        df = pd.read_csv('credit_card_fraud.csv', index_col=0)
+        infile = self.config.fr_data_file
+        df = pd.read_csv(infile, index_col=0)
         end = time.perf_counter()
         self.logger.info(f"\nElapsed time reading credit card fraud CSV file: {end - start:.4f} seconds")
 
@@ -47,21 +58,21 @@ class ReadFraudData(BaseComponent):
         df_2020_ma = df[(df['year'] == 2020) & (df['state'] == 'MA')]
 
         # # save resulting dataset as pickle and csv file
-        pr_0_defs.write_df_to_csv(df_2020_ca, script_directory + "/pr_1_post_2020_ca.csv") # type: ignore
-        pr_0_defs.write_df_to_pickle(df_2020_ca, script_directory + "/pr_1_post_2020_ca.pkl") # type: ignore
+        self.loader_obj.write_df_to_csv(df_2020_ca, self.config.fr_data_process_dir / "pr_1_post_2020_ca.csv") # type: ignore
+        self.loader_obj.write_df_to_pickle(df_2020_ca, self.config.fr_data_process_dir / "pr_1_post_2020_ca.pkl") # type: ignore
 
-        pr_0_defs.write_df_to_csv(df_2020_ma, script_directory + "/pr_1_post_2020_ma.csv") # type: ignore
-        pr_0_defs.write_df_to_pickle(df_2020_ma, script_directory + "/pr_1_post_2020_ma.pkl") # type: ignore
+        self.loader_obj.write_df_to_csv(df_2020_ma, self.config.fr_data_process_dir / "pr_1_post_2020_ma.csv") # type: ignore
+        self.loader_obj.write_df_to_pickle(df_2020_ma, self.config.fr_data_process_dir / "pr_1_post_2020_ma.pkl") # type: ignore
 
 
     def data_preparation(self) -> None:
 
 
-        # script_directory = os.path.dirname(os.path.abspath(__file__)).replace('\\', '/')
-        # self.logger.info(f"Directory of the executing script: {script_directory}")
+        # self.config.fr_data_process_dir = os.path.dirname(os.path.abspath(__file__)).replace('\\', '/')
+        # self.logger.info(f"Directory of the executing script: {self.config.fr_data_process_dir}")
 
-        # df = pr_0_defs.import_pickle(script_directory + "/pr_1_post_2020_ca.pkl") # type: ignore
-        df = pr_0_defs.import_pickle(script_directory + "/pr_1_post_2020_ma.pkl")  # type: ignore
+        # df = self.loader_obj.import_pickle(self.config.fr_data_process_dir / "pr_1_post_2020_ca.pkl") # type: ignore
+        df = self.loader_obj.import_data(self.config.fr_data_process_dir / "pr_1_post_2020_ma.pkl")  # type: ignore
 
         df['ssn'] = df['ssn'].astype(str).str.strip().str.replace('-', '', regex=False).astype(int)
         self.logger.info('ssn done')
@@ -107,42 +118,53 @@ class ReadFraudData(BaseComponent):
         self.logger.info('city pop done')
 
         # save results to csv and pickle
-        pr_0_defs.write_df_to_csv(df, script_directory + "/pr_2_post_data_prep_ma.csv")  # type: ignore
-        pr_0_defs.write_df_to_pickle(df, script_directory + "/pr_2_post_data_prep_ma.pkl")  # type: ignore
 
-        # pr_0_defs.write_df_to_csv(df, script_directory + "/pr_2_post_data_prep.csv") # type: ignore
-        # pr_0_defs.write_df_to_pickle(df, script_directory + "/pr_2_post_data_prep.pkl") # type: ignore
+        self.loader_obj.write_df_to_csv(df, self.config.fr_data_process_dir / "pr_2_post_data_prep_ma.csv")  # type: ignore
+        self.loader_obj.write_df_to_pickle(df, self.config.fr_data_process_dir / "pr_2_post_data_prep_ma.pkl")  # type: ignore
+
+        # self.loader_obj.write_df_to_csv(df, self.config.fr_data_process_dir / "pr_2_post_data_prep.csv") # type: ignore
+        # self.loader_obj.write_df_to_pickle(df, self.config.fr_data_process_dir / "pr_2_post_data_prep.pkl") # type: ignore
 
 
     def tests_data_preparation(self) -> None:
-        df = pr_0_defs.import_pickle(script_directory + "/pr_2_post_data_prep.pkl")  # type: ignore
-
+        # df = self.loader_obj.import_pickle(self.config.fr_data_process_dir / "pr_2_post_data_prep.pkl")  # type: ignore
+        df = self.loader_obj.import_data(self.config.fr_data_process_dir / "pr_2_post_data_prep_ma.pkl")
         self.logger.info(df.info())
 
         # Load your data
-        df = pd.read_csv('pr2_df_2020_ca_data_prep.csv')
+        # df =  self.loader_obj.import_data(self.config.fr_data_process_dir / "pr2_df_2020_ca_data_prep.csv")
+        # df = pd.read_csv('pr2_df_2020_ca_data_prep.csv')
 
         # Generate report
-        def prof_report(df):
-            report = ProfileReport(df, title="Fraud Detection EDA", explorative=True)
-            # Save to HTML
-            report.to_file("fraud_report.html")
-            webbrowser.open('file://' + os.path.realpath("fraud_report.html"))
+        def profile_report(df_):
+            # report = ProfileReport(df, title="Fraud Detection EDA", explorative=True)
+            # # Save to HTML
+            # report.to_file("fraud_report.html")
+            # webbrowser.open('file://' + os.path.realpath("fraud_report.html"))
+
+            report = ProfileReport(df_, title="Fraud Detection EDA", explorative=True)
+            output_filename =self.config.fr_reports_dir / "fraud_report.html"
+            report.to_file(output_filename)
+
+            full_path = os.path.realpath(output_filename)
+            self.logger.info(f"Profiling report saved locally: {full_path}")
+
+        profile_report(df)
 
     def eda_tests(self) -> None:
-        ''' EDA AND ASSOCIATION TESTS ON ORIGINAL COLUMNS '''
-        df = pr_0_defs.import_pickle(script_directory + "/pr_2_post_data_prep.pkl")
+        # EDA AND ASSOCIATION TESTS ON ORIGINAL COLUMNS
+        df = self.loader_obj.import_pickle(self.config.fr_data_process_dir / "pr_2_post_data_prep.pkl")
         self.logger.info(df.info())
         # Generate report
-        # pr_0_defs.eda_report_profile_rep(df)
+        # self.loader_obj.eda_report_profile_rep(df)
         #
-        # csv_file_autoviz = script_directory + "/pr_2_post_data_prep.csv"
+        # csv_file_autoviz = self.config.fr_data_process_dir / "pr_2_post_data_prep.csv"
         # # target_col = "is_fraud"
         # target_col = ""
-        # pr_0_defs.eda_report_autoviz(csv_file_autoviz, target_col)
+        # self.loader_obj.eda_report_autoviz(csv_file_autoviz, target_col)
 
         ''' --- Outliers detection with IsolationForest --- '''
-        y = df["is_fraud"]
+        # y = df["is_fraud"]
         X = df['amt']
         # ============================================
         # 2. Isolation Forest for Outlier Detection
@@ -166,8 +188,8 @@ class ReadFraudData(BaseComponent):
         outlier_scores = iso_forest.score_samples(X)
 
         # -1 = outlier, 1 = normal
-        n_outliers = (outlier_predictions == -1).sum()
-        n_normal = (outlier_predictions == 1).sum()
+        n_outliers = (outlier_predictions == -1).sum() # type: ignore
+        n_normal = (outlier_predictions == 1).sum() # type: ignore
 
         self.logger.info(f"\nOutliers detected: {n_outliers}")
         self.logger.info(f"Normal points: {n_normal}")
@@ -184,8 +206,8 @@ class ReadFraudData(BaseComponent):
         self.logger.info(outliers_df.head())
 
     def feature_engineering(self) -> None:
-        # df = pr_0_defs.import_pickle(script_directory + "/pr_2_post_data_prep.pkl") # type: ignore
-        df = pr_0_defs.import_pickle(script_directory + "/pr_2_post_data_prep_ma.pkl")  # type: ignore
+        # df = self.loader_obj.import_pickle(self.config.fr_data_process_dir / "pr_2_post_data_prep.pkl") # type: ignore
+        df = self.loader_obj.import_data(self.config.fr_data_process_dir / "pr_2_post_data_prep_ma.pkl")  # type: ignore
 
         ''' --- Feature Engineering --- '''
         df = df.sort_values(by=["ssn", "unix_time"]).reset_index(drop=True)
@@ -232,32 +254,34 @@ class ReadFraudData(BaseComponent):
         )
         self.logger.info(missing_summary)
 
-        # pr_0_defs.write_df_to_csv(df, script_directory + "/pr_4_interim_feat_engin_enc.csv") # type: ignore
-        # pr_0_defs.write_df_to_pickle(df, script_directory + "/pr_4_interim_post_feat_engin_enc.pkl") # type: ignore
+        # self.loader_obj.write_df_to_csv(df, self.config.fr_data_process_dir / "pr_4_interim_feat_engin_enc.csv") # type: ignore
+        # self.loader_obj.write_df_to_pickle(df, self.config.fr_data_process_dir / "pr_4_interim_post_feat_engin_enc.pkl") # type: ignore
 
-        pr_0_defs.write_df_to_csv(df, script_directory + "/pr_4_interim_feat_engin_enc_ma.csv")  # type: ignore
-        pr_0_defs.write_df_to_pickle(df, script_directory + "/pr_4_interim_post_feat_engin_enc_ma.pkl")  # type: ignore
+        self.loader_obj.write_df_to_csv(df, self.config.fr_data_process_dir / "pr_4_interim_feat_engin_enc_ma.csv")  # type: ignore
+        self.loader_obj.write_df_to_pickle(df, self.config.fr_data_process_dir / "pr_4_interim_post_feat_engin_enc_ma.pkl")  # type: ignore
 
         ''' EDA ON ENCODED DATA '''
-        # # df = pr_0_defs.import_pickle(script_directory + "/pr_2_post_data_prep.pkl")
+        # # df = self.loader_obj.import_pickle(self.config.fr_data_process_dir / "pr_2_post_data_prep.pkl")
         # # self.logger.info(df.info())
         # # Generate report
-        # pr_0_defs.eda_report_profile_rep(df)
+        # self.loader_obj.eda_report_profile_rep(df)
         #
-        # csv_file_autoviz = script_directory + "/pr_4_interim_feat_engin_enc.csv"
+        # csv_file_autoviz = self.config.fr_data_process_dir / "pr_4_interim_feat_engin_enc.csv"
         # target_col = "is_fraud"
         # # target_col = ""
-        # # pr_0_defs.eda_report_autoviz(csv_file_autoviz, target_col)
+        # # self.loader_obj.eda_report_autoviz(csv_file_autoviz, target_col)
         #
         # df = df.copy()
         # bool_cols = df.select_dtypes(include=['bool']).columns
         # df[bool_cols] = df[bool_cols].astype(int)
 
     def roll_stats_selection_models_fit(self):
-        # df = pr_0_defs.import_pickle(script_directory + "/pr_4_interim_post_feat_engin_enc.pkl") # type: ignore
-        df = pr_0_defs.import_pickle(script_directory + "/pr_4_interim_post_feat_engin_enc_ma.pkl")  # type: ignore
+        # df = self.loader_obj.import_pickle(self.config.fr_data_process_dir / "pr_4_interim_post_feat_engin_enc.pkl") # type: ignore
+        df = self.loader_obj.import_data(self.config.fr_data_process_dir / "pr_4_interim_post_feat_engin_enc_ma.pkl")  # type: ignore
+
         ''' X data Split balanced, grouped '''
-        X_train, X_dev, X_test = pr_0_defs.temporal_split_balanced(df)
+        # X_train, X_dev, X_test = pr_0_defs.temporal_split_balanced(df)
+        X_train, X_dev, X_test = pr_0_defs.ssn_stratified_split(df)
 
         self.logger.info("Before feature engineering:")
         self.logger.info(f"X_train: {X_train.shape}")
@@ -281,8 +305,8 @@ class ReadFraudData(BaseComponent):
 
         # Apply rolling features to each split (rolling is per-user, no leakage)
         X_train = pr_0_defs.feat_eng_rolling(X_train)
-        X_dev = pr_0_defs.feat_eng_rolling(X_dev)
-        X_test = pr_0_defs.feat_eng_rolling(X_test)
+        X_dev   = pr_0_defs.feat_eng_rolling(X_dev)
+        X_test  = pr_0_defs.feat_eng_rolling(X_test)
 
         # Calculate fraud per capita on training data only
         fraud_stats = X_train.groupby('city').agg({
@@ -318,11 +342,11 @@ class ReadFraudData(BaseComponent):
             columns=['ssn', 'is_fraud', 'amt', 'unix_time', 'merchant', 'job', 'city', 'cc_num', 'city_pop', 'area'],
             inplace=True)
 
-        self.logger.info(X_train.shape, X_dev.shape, X_test.shape)
+        self.logger.info(f"X_train.shape={X_train.shape}, X_dev.shape={X_dev.shape}, X_test.shape={X_test.shape}")
         self.logger.info(X_train.columns)
         data = list(X_train.columns)
-        import csv
-        with open('output.csv', 'w', newline='', encoding='utf-8') as f:
+
+        with open(self.config.fr_data_process_dir / 'output.csv', 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow(data)
 
@@ -419,7 +443,7 @@ class ReadFraudData(BaseComponent):
         self.logger.info("Fitting RFE... (this may take a moment)")
         rfe.fit(X, y)
 
-        xgb_rfe_selected = rfe.support_.astype(int)
+        # xgb_rfe_selected = rfe.support_.astype(int)
         end = time.perf_counter()
         self.logger.info(f"\nElapsed time XGBoost RFE: {(end - start) / 60.:.4f} minutes")
 
@@ -516,12 +540,17 @@ class ReadFraudData(BaseComponent):
 
         # Logistic Regression
 
-        logi = LogisticRegression(random_state=42, max_iter=1000)
+        # logi = LogisticRegression(random_state=42, max_iter=1000)
+        logi = LogisticRegression(
+            random_state=42,
+            max_iter=5000,
+            class_weight='balanced'
+        )
         logi.fit(X_train, y_train)
 
         pred_logi = logi.predict(X_dev)
         # Calculate confusion matrix
-        cm = confusion_matrix(y_dev, pred_logi)
+        # cm = confusion_matrix(y_dev, pred_logi)
         model_dict = {'model': "Logistic Regression"}
         new_row = pd.DataFrame([{**model_dict, **pr_0_defs.classification_metrics(y_dev, pred_logi)}])
         models_list = pd.concat([models_list, new_row], ignore_index=True)
@@ -576,8 +605,8 @@ class ReadFraudData(BaseComponent):
         model_dict = {'model': "XGBoost"}
         new_row = pd.DataFrame([{**model_dict, **pr_0_defs.classification_metrics(y_dev, pred_xgb)}])
         models_list = pd.concat([models_list, new_row], ignore_index=True)
-        #
-        # # SVM
+
+       ## SVM
         # svm = SVC(probability=True)
         # svm.fit(X_train,y_train)
         # pred_svm = svm.predict(X_dev)
@@ -585,7 +614,7 @@ class ReadFraudData(BaseComponent):
         # self.logger.info(confusion_matrix(y_dev,pred_svm))
         # self.logger.info(classification_report(y_dev,pred_svm))
         # model_dict = {'model': "SVM"}
-        # new_row = pd.DataFrame([{**model_dict, **pr_0_defs.classification_metrics(y_dev, pred_svm)}])
+        # new_row = pd.DataFrame([{**model_dict, **self.loader_obj.classification_metrics(y_dev, pred_svm)}])
         # models_list = pd.concat([models_list, new_row], ignore_index=True)
 
         self.logger.info(models_list.sort_values('Accuracy', ascending=False))
@@ -594,10 +623,7 @@ class ReadFraudData(BaseComponent):
         # #
         # # ''' --------------------------------------------------------------------------------------------------------------- '''
         # # #
-        import optuna
-        from xgboost import XGBClassifier
-        from sklearn.model_selection import cross_val_score
-        import numpy as np
+
 
         # ============================================================
         # XGBOOST OPTUNA OPTIMIZATION
@@ -608,7 +634,8 @@ class ReadFraudData(BaseComponent):
             Objective function for XGBoost hyperparameter optimization
             """
             # Calculate scale_pos_weight for imbalanced data
-            scale_pos_weight = sum(y_train == 0) / sum(y_train == 1)
+            scale_pos_weight_ = sum(y_train == 0) / sum(y_train == 1)
+            # scale_pos_weight_ = (y_train == 0).sum() / (y_train == 1).sum() # type: ignore
 
             params = {
                 'n_estimators': trial.suggest_int('n_estimators', 100, 500),
@@ -618,7 +645,7 @@ class ReadFraudData(BaseComponent):
                 'colsample_bytree': trial.suggest_float('colsample_bytree', 0.6, 1.0),
                 'gamma': trial.suggest_float('gamma', 0, 5),
                 'min_child_weight': trial.suggest_int('min_child_weight', 1, 10),
-                'scale_pos_weight': scale_pos_weight,
+                'scale_pos_weight': scale_pos_weight_,
                 'random_state': 42,
                 'n_jobs': -1,
                 'eval_metric': 'logloss',
@@ -637,10 +664,7 @@ class ReadFraudData(BaseComponent):
 
             return scores.mean()
 
-        # ============================================================
         # RUN OPTIMIZATION
-        # ============================================================
-
         self.logger.info("=" * 100)
         self.logger.info("XGBOOST HYPERPARAMETER OPTIMIZATION WITH OPTUNA")
         self.logger.info("=" * 100)
@@ -649,10 +673,8 @@ class ReadFraudData(BaseComponent):
         study = optuna.create_study(direction='maximize')
         study.optimize(objective, n_trials=30, n_jobs=-1, show_progress_bar=True)
 
-        # ============================================================
-        # RESULTS ANALYSIS
-        # ============================================================
 
+        # RESULTS ANALYSIS
         self.logger.info("\n" + "=" * 100)
         self.logger.info("OPTIMIZATION RESULTS")
         self.logger.info("=" * 100)
@@ -661,12 +683,14 @@ class ReadFraudData(BaseComponent):
         for key, value in study.best_params.items():
             self.logger.info(f"  {key}: {value}")
 
-        # ============================================================
         # TRAIN FINAL MODEL WITH BEST PARAMETERS
-        # ============================================================
 
         best_params = study.best_params
-        scale_pos_weight = sum(y_train == 0) / sum(y_train == 1)
+
+        counts_zeros = (y_train == 0).astype(int) # type: ignore
+        counts_ones = (y_train == 1).astype(int) # type: ignore
+        scale_pos_weight = sum(counts_zeros) / sum(counts_ones)
+        # scale_pos_weight = sum(y_train == 0) / sum(y_train == 1)
 
         final_xgb = XGBClassifier(
             **best_params,
@@ -687,13 +711,7 @@ class ReadFraudData(BaseComponent):
             early_stopping_rounds=10,
             verbose=50
         )
-
-        self.logger.info(f"\n✓ Model trained. Best iteration: {final_xgb.best_iteration}")
-
-        # ============================================================
         # EVALUATION ON DEV SET
-        # ============================================================
-
         y_dev_pred = final_xgb.predict(X_dev)
         y_dev_proba = final_xgb.predict_proba(X_dev)[:, 1]
 
@@ -741,17 +759,8 @@ class ReadFraudData(BaseComponent):
         self.logger.info(f"  AUC-ROC: {roc_auc_score(y_test, y_test_proba):.4f}")
 
 
-        # ============================================================
-        # CONFIGURATION
-        # ============================================================
 
-        N_SPLITS = 5
-        RANDOM_STATE = 42
-
-        # ============================================================
         # DEFINE IMBALANCED DATA HANDLING TECHNIQUES
-        # ============================================================
-
         techniques = {
             "ROS": RandomOverSampler(random_state=47),
             "RUS": RandomUnderSampler(random_state=47),
@@ -760,33 +769,27 @@ class ReadFraudData(BaseComponent):
             "None": None  # Baseline: no resampling
         }
 
-        # ============================================================
         # DEFINE MODELS
-        # ============================================================
-
         models_config = {
-            "Logistic Regression": LogisticRegression(random_state=42, max_iter=1000),
+            "Logistic Regression": LogisticRegression(
+            random_state=42,
+            max_iter=5000,
+            class_weight='balanced'
+        ),
             "Ada Boost": AdaBoostClassifier(random_state=42),
             "GBM Boost": GradientBoostingClassifier(random_state=42),
             "Random Forest": RandomForestClassifier(random_state=42, n_jobs=-1),
             "XGBoost": XGBClassifier(
-                n_estimators=461,
-                max_depth=13,
-                learning_rate=0.15703206747252366,
-                subsample=0.7467659251079928,
-                colsample_bytree=0.6966231041161306,
-                gamma=0.11568411276837443,
-                min_child_weight=6,
+                **best_params,
+                scale_pos_weight=scale_pos_weight,
                 random_state=42,
-                verbosity=0
+                n_jobs=-1,
+                eval_metric='logloss'
             )
             #, "SVM": SVC(probability=True, random_state=42)
         }
 
-        # ============================================================
         # TRAIN AND EVALUATE ALL COMBINATIONS
-        # ============================================================
-
         results_list = []
 
         for technique_name, technique in techniques.items():
@@ -805,7 +808,7 @@ class ReadFraudData(BaseComponent):
 
             # Train each model
             for model_name, model in models_config.items():
-                self.logger.info(f"\n  Training {model_name}...", end=" ")
+                self.logger.info(f"\n  Training {model_name}...")
 
                 # Clone model to avoid refitting issues
                 if model_name == "Logistic Regression":
@@ -863,7 +866,7 @@ class ReadFraudData(BaseComponent):
                     'TN': tn
                 })
 
-                self.logger.info(f"✓ (Acc: {accuracy:.4f}, Recall: {recall:.4f}, F1: {f1:.4f})")
+                self.logger.info(f"(Acc: {accuracy:.4f}, Recall: {recall:.4f}, F1: {f1:.4f})")
 
         # ============================================================
         # COMPILE RESULTS
@@ -955,7 +958,5 @@ class ReadFraudData(BaseComponent):
         # SAVE RESULTS
         # ============================================================
 
-        results_df.to_csv('imbalanced_data_techniques_results.csv', index=False)
-        self.logger.info("\n✓ Results saved to 'imbalanced_data_techniques_results.csv'")
-
-
+        # results_df.to_csv('imbalanced_data_techniques_results.csv', index=False)
+        # self.logger.info("\n✓ Results saved to 'imbalanced_data_techniques_results.csv'")

@@ -35,16 +35,17 @@ class AppConfig(BaseModel):
 
     # fraud detection paths
     fr_data_dir: Path = Field(default_factory=lambda: here("fraud_detection"))
-    fr_data_raw_dir: Path = Field(default_factory=lambda: here("fraud_detection/raw"))
-    fr_data_process_dir: Path = Field(default_factory=lambda: here("fraud_detection/processed"))
+    fr_data_raw_dir: Path = Field(default_factory=lambda: here("fraud_detection/data/raw"))
+    fr_data_process_dir: Path = Field(default_factory=lambda: here("fraud_detection/data/processed"))
 
-    # fraud detection Plots
+    fr_reports_dir: Path = Field(default_factory=lambda: here("fraud_detection/reports"))
     fr_plots_dir: Path = Field(default_factory=lambda: here("fraud_detection/plots"))
 
     # fraud detection Logs
     fr_log_dir: Path = Field(default_factory=lambda: here("fraud_detection/logs"))
     fr_log_file: Path = Field(default_factory=lambda: here("fraud_detection/logs/app.log"))
     fr_log_level: str = "DEBUG"
+    fr_data_file: Path = Field(default_factory=lambda: here("fraud_detection/data/raw/credit_card_fraud.csv"))
 
 
     # ML

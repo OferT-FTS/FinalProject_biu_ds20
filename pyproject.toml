@@ -24,7 +24,7 @@ yfinance = "^0.2.66"
 pmdarima = "^2.1.1"
 statsmodels = "^0.14.5"
 tensorflow = "^2.13.0"
-xgboost = "^3.1.2"
+xgboost = "1.7.6"
 optuna = "^4.6.0"
 lightgbm = "^4.6.0"
 imbalanced-learn = "^0.14.0"
@@ -32,6 +32,7 @@ geopy = "^2.4.1"
 shap = "^0.50.0"
 scikit-posthocs = "^0.11.4"
 ydata-profiling = {version = "^4.18.0", python = ">=3.10,<3.14"}
+plotly = "^6.5.0"
 
 [build-system]
 requires = ["poetry-core"]
