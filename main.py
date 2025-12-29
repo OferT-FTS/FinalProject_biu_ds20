@@ -15,7 +15,7 @@ def main():
     #ts_pipeline = TsMLPipeline(config)
     fr_pipeline = FrMLPipeline(config)
     #ts_pipeline.run_prophet()
-    #fr_pipeline.run_fraud_pipeline(config)
+    fr_pipeline.run_fraud_pipeline()
     # ts_pipeline.run_s_arima_x()
     # ts_pipeline.run_xgboost()
 
