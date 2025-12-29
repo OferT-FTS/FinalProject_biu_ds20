@@ -12,8 +12,8 @@ def main():
     #fraud detection logging
     setup_logging(config.fr_log_file, config.fr_log_level)
 
-    ts_pipeline = TsMLPipeline(config)
-    fr_pipeline = FrMLPipeline(config)
+    #ts_pipeline = TsMLPipeline(config)
+    #fr_pipeline = FrMLPipeline(config)
     # ts_pipeline.run_prophet()
     fr_pipeline.run_fraud_pipeline(config)
     # ts_pipeline.run_s_arima_x()
